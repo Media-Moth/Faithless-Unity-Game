@@ -2,606 +2,171 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Unity.Hierarchy;
 using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEditor.Searcher.SearcherWindow.Alignment;
 using Random = UnityEngine.Random;
+using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
-public class MapGeneration : MonoBehaviour
+public class NewMapGeneration : MonoBehaviour
 {
-    static int Rooms = 60;
-    static int minSize = 6;
-    static int maxSize = 10;
-    static int LevelSize = 50;
+    static int minSize = 2;
+    static int maxSize = 9;
+    static int rooms = 100;
+    static int radius = 10;
+    static int tileSize = 2;
+    static int iterations = 1500;
 
-    static bool[,] filled = new bool[LevelSize + maxSize, LevelSize + maxSize];
     static List<Vector3> Vertices = new List<Vector3>();
     static List<int> triangles = new List<int>();
+    static List<room> nodes = new List<room>();
 
-    static int generateFloor(int x,int y,int sizeX,int sizeY)
+    // we sohuld generate floors in a circle
+    // with some corriders moving closer to the centre
+    // and the centre being the last room to exit the floor
+    // some rooms will have teleporters that transport you to distance rooms
+    struct room
     {
-        for (int i = 0; i < sizeX; i++)
-        {
-            for (int j = 0; j < sizeY; j++)
-            {
-                if (filled[x+i,y+j] == true)
-                {
-                    return -1;
-                }
-            }
-        }
-
-
-
-        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        cube.transform.Rotate(90, 0, 0);
-        cube.transform.localScale = new Vector3(sizeX, sizeY, 1);
-        //because origin is centre of block instead of bottom left
-        cube.transform.localPosition = new Vector3(x + ((float)sizeX/2), -0f, y + ((float)sizeY/2));
-        
-        for (int i = 0; i < sizeX + 1; i++)
-        {
-            for (int j = 0; j < sizeY + 1; j++)
-            {
-                filled[x + i, y + j] = true;
-            }
-        }
-
-        return 0;
+        public Vector2 position;
+        public Vector2 velocity;
+        public int width;
+        public int height;
     }
-    //static void generateFloorMesh(int bottomX, int topX, int bottomY, int topY)
-    //{
-    //    // bottom x,y = bottom left
-    //    // top x, y = top right
-
-    //    Vector3 bottomLeft = new Vector3(bottomX, 0, bottomY);
-    //    Vector3 TopLeft = new Vector3(bottomX, 0, topY);
-    //    Vector3 topRight = new Vector3(topX, 0, topY);
-    //    Vector3 bottomRight = new Vector3(topX, 0, bottomY);
-
-    //    // bottom left
-    //    Vector3 tmp = Vertices.Find(tri => tri.x == bottomLeft.x);
-    //    if (tmp == null)
-    //    {
-    //        Vertices.Add(new Vector3(bottomX, 0, bottomY));
-    //        triangles.Add()
-    //    }
-    //    else
-    //    {
-
-    //    }
-
-
-    //    // top left
-    //    Vertices.Add(new Vector3(bottomX, 0, bottomY));
-    //    // top right
-    //    Vertices.Add(new Vector3(bottomX, 0, bottomY));
-    //    // bottom right
-    //    Vertices.Add(new Vector3(bottomX, 0, bottomY));
-    //}
-    //static void generateFloorMesh()
-    //{
-    //    bool[,] done = new bool[LevelSize + maxSize, LevelSize + maxSize];
-    //    for (int x = 0; x < LevelSize + maxSize; x++)
-    //    {
-    //        for (int y = 0; y < LevelSize + maxSize; y++)
-    //        {
-    //            if (filled[x, y] == true && done[x, y] == false)
-    //            {
-    //                int travelerX = x;
-    //                int travelerY = y;
-
-    //                // current triangle number we're up to
-    //                //int currentTriangle = 0;
-
-    //                // triangles with less than 3 vertices
-    //                //List<int> uncompletedTriangles = new List<int>();
-
-    //                for (int i = 0; i < filled.Length; i++)
-    //                {
-
-    //                    bool above = filled[travelerX, travelerY + 1];
-    //                    bool below = filled[travelerX, travelerY - 1];
-    //                    bool left = filled[travelerX - 1, travelerY];
-    //                    bool right = filled[travelerX + 1, travelerY];
-
-    //                    // amount of consective turns we've done
-    //                    int turns = 0;
-
-    //                    if (left != true || done[x,y] == false)
-    //                    {
-    //                        // check y is not at max cord to prevent error with checking a position
-    //                        // that doesn't exist
-    //                        while (y != LevelSize + maxSize || above)
-    //                        {
-    //                            travelerY++;
-    //                            above = filled[travelerx, travelery + 1];
-    //                            below = filled[travelerX, travelerY - 1];
-    //                            left = filled[travelerX - 1, travelerY];
-    //                            right = filled[travelerX + 1, travelerY];
-
-    //                            if (y != LevelSize + maxSize ||
-    //                                (above == true && below == true &&
-    //                                left == true && right == true))
-    //                            {
-    //                                //This means there is a square on the left
-    //                                // so we put a vertice above to the top
-    //                                // and a vertice to the right edge
-    //                                // and we place a vertice at current position
-    //                                // this makes it so the vertice positions are
-    //                                // subdivided correctly, and the convex hull is a union
-    //                                // of all the square
-
-    //                                int offset = 0;
-    //                                while (y != LevelSize + maxSize || above)
-    //                                {
-    //                                    offset++;
-    //                                    above = filled[travelerX, travelerY + offset + 1];
-    //                                }
-    //                                Vertices.Add(new Vector3(x, 0, y + offset));
-    //                                offset = 0;
-
-    //                                while (x != LevelSize + maxSize || right)
-    //                                {
-    //                                    offset++;
-    //                                    right = filled[travelerX + offset + 1, travelerY];
-    //                                }
-    //                                Vertices.Add(new Vector3(x + offset, 0, y));
-    //                                break;
-    //                            }
-    //                            done[x, y] = true;
-    //                        }
-
-    //                        Vertices.Add(new Vector3(x, 0, y));
-    //                        if (y != LevelSize + maxSize &&
-    //                            above == true && below == true &&
-    //                            left == true && right == true)
-    //                        {
-    //                            // offsets to the left so its on a tile with
-    //                            // a unfilled bottom
-    //                            x++;
-    //                        }
-    //                        else
-    //                        {
-
-    //                        }
-    //                            done[x,y] = true;
-    //                    }
-    //                }
-
-    //            }
-    //        }
-    //    }
-    //}
-    static Vector3[] getVertices(int x,int y)
+    static void generateTriangles()
     {
-        int offsetX = 0;
-        int offsetY = 0;
-
-        Vector3 topLeft = new Vector3(x, 0, y);
-        // go from top left to top right
-        while (checkFilled(x + offsetX + 1, y, true))
+        for (int i = 0; i < nodes.Count; i++)
         {
-            offsetX++;
-            int s = x + offsetX;
-            Debug.Log("dool: " + s + " " + filled[x + offsetX, y]);
-            // if there's a vertice already on this coordinate
-            if (Vertices.Exists(tri => tri == new Vector3(x + offsetX, 0, y)))
+            room currentRoom = nodes[i];
+            // clockwise direction (or so i thought)
+            int[] xdir = { 1, -1, -1, 1 };
+            int[] ydir = {1, 1, -1, -1};
+            for (int j = 0; j < 4; j++)
             {
-                Debug.Log("vertice on dool, proceed to break");
-                break;
-            }
-        }
-        int o = x + offsetX;
-        Debug.Log("toprightOFFSET: " + offsetX);
-        Debug.Log("topright: " + o);
-        Vector3 topRight = new Vector3(x + offsetX, 0, y);
-        if (offsetX == 0)
-        {
-            Debug.LogError("could not found square vertices\n" + topLeft + " and " + topRight);
-            return new Vector3[4] { topLeft, topRight, Vector3.zero, Vector3.zero };
-        }
-        // go back and forth like mowing a lawn
-        // to accurately find the bottom vertice positions
-        for (int j = 0; j < maxSize + LevelSize; j++)
-        {
-            offsetY--;
-            Debug.Log(offsetX + ", " + offsetY);
-            Debug.Log(topLeft.x - topRight.x);
-            for (int i = 0; i < topRight.x - topLeft.x; i++)
-            {
-                // if a vertice is already there
-                if (Vertices.Exists(tri => tri == new Vector3(topRight.x, 0, y+offsetY)))
+                Vector3 vert = new Vector3(
+                    currentRoom.position.x + (currentRoom.width - 1) / 2 * xdir[j],
+                    0,
+                    currentRoom.position.y + (currentRoom.height - 1) / 2 * ydir[j]
+                );
+                Vertices.Add(vert);
+                if (j == 2)
                 {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-
+                    // other way makes it face downwards idk why
+                    triangles.Add(i * 4 + 2);
+                    triangles.Add(i * 4 + 1);
+                    triangles.Add(i * 4);
                 }
-                // if left and bottom are filled and bottom left diagonial is unfilled
-                if (checkFilled(x + offsetX - 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY - 1, true) &&
-                    checkFilled(x + offsetX - 1, y + offsetY - 1, false))
+                if (j == 3)
                 {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if right and bottom are filled and bottom right diagonal is unfilled
-                if (checkFilled(x + offsetX + 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY - 1, true) &&
-                    checkFilled(x + offsetX + 1, y + offsetY -1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if left and top is filled but top left diagonal is unfilled
-                if (checkFilled(x + offsetX - 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY + 1, true) &&
-                    checkFilled(x + offsetX - 1, y + offsetY + 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if right and top is filled but top right diagonal is unfilled
-                if (checkFilled(x + offsetX + 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY + 1, true) &&
-                    checkFilled(x + offsetX + 1, y + offsetY + 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] {topLeft, topRight, bottomRight, bottomLeft};
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-                }
-                // if below isn't filled that means we're at the bottom
-                // of the rectangle
-                if (checkFilled(x + offsetX, y + offsetY - 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-
-                }
-                offsetX--;
-            }
-            offsetY--;
-            for (int i = 0; i < topRight.x - topLeft.x; i++)
-            {
-                // if a vertice is already there
-                if (Vertices.Exists(tri => tri == new Vector3(x + offsetX, 0, y + offsetY)))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-                    
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-
-                }
-                // if left and bottom are filled and bottom left diagonial is unfilled
-                if (checkFilled(x + offsetX - 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY - 1, true) &&
-                    checkFilled(x + offsetX - 1, y + offsetY - 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if right and bottom are filled and bottom right diagonal is unfilled
-                if (checkFilled(x + offsetX + 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY - 1, true) &&
-                    checkFilled(x + offsetX + 1, y + offsetY -1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if left and top is filled but top left diagonal is unfilled
-                if (checkFilled(x + offsetX - 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY + 1, true) &&
-                    checkFilled(x + offsetX - 1, y + offsetY + 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-                }
-                // if right and top is filled but top right diagonal is unfilled
-                if (checkFilled(x + offsetX + 1, y + offsetY, true) &&
-                    checkFilled(x + offsetX, y + offsetY + 1, true) &&
-                    checkFilled(x + offsetX + 1, y + offsetY + 1, false))
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] {topLeft, topRight, bottomRight, bottomLeft};
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-                }
-                // if below isn't filled that means we're at the bottom
-                // of the rectangle
-                if (checkFilled(x + offsetX, y + offsetY - 1, false) || y + offsetY == 0)
-                {
-                    Vector3 bottomRight = new Vector3(topRight.x, 0, y + offsetY);
-                    Vector3 bottomLeft = new Vector3(topLeft.x, 0, y + offsetY);
-
-                    Vector3[] squareVertices = new Vector3[4] { topLeft, topRight, bottomRight, bottomLeft };
-
-                    unFillSquare(squareVertices);
-
-                    return squareVertices;
-
-
-                }
-                offsetX++;
-            }
-        }
-        Debug.LogError("could not found square vertices\n" + topLeft + " and " + topRight);
-        return new Vector3[4] {topLeft, topRight, Vector3.zero, Vector3.zero};
-    }
-    static bool checkPointNeighbors(int x,int y, int[] dx, int[] dy, Vector3 topLeft, Vector3 bottomRight)
-    {
-        for (int i = 0; i < dx.Length; i++)
-        {
-            // check if the point is filled
-            // and if the point is not out of bounds
-            int ox = x + dx[i];
-            int oy = y + dy[i];
-
-            if (
-                checkFilled(ox, oy, true) &&
-                (ox > bottomRight.x || ox < topLeft.x ||
-                oy > topLeft.z || oy < bottomRight.z)
-                )
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    static void unFillSquare(Vector3[] sqVertices)
-    {
-        // keep points that neighbor adjacent rectangles filled
-        // unfill the rest
-
-        Vector3 topLeft = sqVertices[0];
-        Vector3 topRight = sqVertices[1];
-        Vector3 bottomRight = sqVertices[2];
-        Vector3 bottomLeft = sqVertices[3];
-
-        List<int> xCords = new List<int>();
-        List<int> yCords = new List<int>();
-
-        int[] dx = { 0, -1, 1, 0 };
-        int[] dy = { -1, 0, 0, 1 };
-
-
-        //int[] dx = { -1,  0,  1, -1, 1, -1, 0, 1 };
-        //int[] dy = { -1, -1, -1,  0, 0,  1, 1, 1 };
-
-        for (int x = (int)topLeft.x; x <= (int)topRight.x; x++)
-        {
-            // Z axis is the where the 2d y coords are
-            for (int y = (int)bottomRight.z; y <= (int)topLeft.z; y++)
-            {
-                if (checkPointNeighbors(x,y,dx,dy, topLeft, bottomRight) == false)
-                {
-                    xCords.Add(x);
-                    yCords.Add(y);
-                }
-                // checking right side
-                // if the point to the right is false
-                //if (checkFilled(x + 1, y, false))
-                //{
-                //    xCords.Add(x);
-                //    yCords.Add(y);
-                //}
-                //// checking left side
-                //else if (checkFilled(x - 1, y, false))
-                //{
-                //    xCords.Add(x);
-                //    yCords.Add(y);
-                //}
-                //// checking bottom
-                //else if (checkFilled(x, y - 1, false))
-                //{
-                //    xCords.Add(x);
-                //    yCords.Add(y);
-
-                //}
-                //// checking top
-                //else if (checkFilled(x, y + 1, false))
-                //{
-                //    xCords.Add(x);
-                //    yCords.Add(y);
-                //}
-            }
-        }
-        // do the unfilling after because if done during
-        // the previously unfilled tiles mess up the following ones
-        for (int i = 0; i < xCords.Count; i++)
-        {
-            filled[xCords[i], yCords[i]] = false;
-            Debug.Log("unfilled: " +  xCords[i] + ", " + yCords[i]);
-        }    
-        
-    }
-    static bool checkFilled(int x, int y, bool condition)
-    {
-        // if x or y is out of bounds
-        // this is to prevent out of bounds runtime error
-        if (x >= maxSize + LevelSize || y >= maxSize + LevelSize)
-        {
-            return false;
-        }
-        if (x < 0 || y < 0)
-        {
-            return false;
-        }
-        return filled[x,y] == condition;
-    }
-    // BETTER IDEA
-    static void generateFloorMesh()
-    {
-        for (int y = maxSize + LevelSize - 1; y >= 0; y--)
-        {
-            for (int x = 0; x < maxSize + LevelSize; x++)
-            {
-                Debug.Log("cord:" + x + ", " + y);
-                if (filled[x, y] == true)
-                {
-                    Vector3[] squareVertices = getVertices(x, y);
-                    Debug.Log("sq vert: " + squareVertices[0]);
-                    Debug.Log("sq vert: " + squareVertices[1]);
-                    Debug.Log("sq vert: " + squareVertices[2]);
-                    Debug.Log("sq vert: " + squareVertices[3]);
-
-                    Vertices.AddRange(squareVertices);
-                    Vertices = Vertices.Distinct().ToList();
-
-                    for (int i = 0; i < 4; i++)
-                    {
-                        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                        cube.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-                        cube.transform.localPosition = new Vector3(squareVertices[i].x, 0.5f, squareVertices[i].z);
-
-                        Material newMaterial = Resources.Load<Material>("SpatialMappingWireframe");
-
-                        // Get the object's renderer
-                        Renderer renderer = cube.GetComponent<Renderer>();
-                        // Apply the material to the renderer
-                        renderer.material = newMaterial;
-
-                    }
+                    triangles.Add(i * 4 + 3);
+                    triangles.Add(i * 4 + 2);
+                    triangles.Add(i * 4);
+                    Debug.DrawLine(vert, Vertices[i * 4 + 2], Color.green, 100f);
+                    Debug.DrawLine(Vertices[i*4+2], Vertices[i * 4 + 1], Color.green, 100f);
+                    Debug.DrawLine(Vertices[i*4+1], Vertices[i * 4], Color.green, 100f);
+                    Debug.DrawLine(Vertices[i * 4], vert, Color.green, 100f);
                 }
             }
         }
     }
-
-    static void generateDebugGrid()
+    static void generateRoom()
     {
-        for (int i = 0; i < LevelSize + maxSize; i++)
+        room newRoom = new room();
+        newRoom.position = generatePoint();
+        newRoom.width = Random.Range(minSize, maxSize)*2 - 1; // make it odd number
+        newRoom.height = Random.Range(minSize, maxSize)*2 -1;
+        nodes.Add(newRoom);
+    }
+    static bool isRoomColliding(room a, room b)
+    {
+        bool yCollide = a.position.y - (a.height - 1) / 2 < b.position.y + (b.height - 1) / 2 && b.position.y - (b.height - 1) / 2 < a.position.y - (a.height - 1) / 2;
+        bool xCollide = a.position.x - (a.width - 1) / 2 < b.position.x + (b.width - 1) / 2 && b.position.x - (b.width - 1) / 2 < a.position.x - (a.width - 1) / 2;
+        return xCollide && yCollide;
+    }
+    static void moveRooms()
+    {
+        for (int i = 0; i < nodes.Count; i++)
         {
-            for(int j = 0; j < LevelSize + maxSize; j++)
+            room currentRoom = nodes[i];
+            for (int j = 0; j < nodes.Count; j++)
             {
-                GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                cube.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-                cube.transform.localPosition = new Vector3(i, 0, j);
-
-                if (i % 5 == 0 || j % 5 ==0)
+                if (i == j) continue;
+                room otherRoom = nodes[j];
+                if (isRoomColliding(currentRoom, otherRoom))
                 {
-                    cube.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-                }
-                if (i % 10 == 0 || j % 10 == 0)
-                {
-                    cube.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-                }
-
-                if (filled[i, j] == true)
-                {
-                    Material newMaterial = Resources.Load<Material>("MushToon");
-
-                    // Get the object's renderer
-                    Renderer renderer = cube.GetComponent<Renderer>();
-                    // Apply the material to the renderer
-                    renderer.material = newMaterial;
-
-                    cube.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
+                    Vector2 direction = currentRoom.position - otherRoom.position;
+                    currentRoom.velocity += direction / (direction.magnitude + 0.1f);
+                    currentRoom.velocity *= 0.9f; // friction
                 }
             }
+            currentRoom.velocity -= currentRoom.position * 0.1f; // pull to centre
+            currentRoom.velocity *= 0.8f; // friction
+            currentRoom.position += new Vector2 (roundToTile(currentRoom.velocity.x), roundToTile(currentRoom.velocity.y));
+            nodes[i] = currentRoom;
         }
+        Debug.Log(nodes[0].velocity);
     }
+    static int roundToTile(float value)
+    {
+        return (int)Math.Floor((value + tileSize - 1)/ tileSize) * tileSize;
+    }
+    static Vector2 generatePoint()
+    {
+        float t = 2f * (float)Math.PI * Random.value;
+        float u = Random.value + Random.value;
+        float r = 0f;
+        if (u > 1f)
+        {
+            r = 2f - u;
+        }
+        else
+        {
+            r = u;
+        }
+        return new Vector2(roundToTile(r * 20 * Mathf.Cos(t)), roundToTile(r * 20 * Mathf.Sin(t)));
+    }
+    static void generateMesh()
+    {
+        Mesh mesh = new Mesh();
+        mesh.vertices = Vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        mesh.uv = new Vector2[mesh.vertices.Length];
+        for (int i = 0; i < mesh.vertices.Length; i++)
+        {
+            mesh.uv[i] = new Vector2(mesh.vertices[i].x, mesh.vertices[i].z);
+        }
+        GameObject meshObject = new GameObject("Mesh");
+        meshObject.AddComponent<MeshFilter>();
+        meshObject.AddComponent<MeshRenderer>();
 
-    //[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
+        meshObject.GetComponent<MeshFilter>().mesh = mesh;
+        Material newMaterial = Resources.Load<Material>("MushToon");
+        // Get the object's renderer
+        Renderer renderer = meshObject.GetComponent<Renderer>();
+        // Apply the material to the renderer
+        renderer.material = newMaterial;
+
+        MeshCollider collider = meshObject.AddComponent<MeshCollider>();
+        collider.sharedMesh = mesh;
+    }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
     static void OnBeforeSplashScreen()
     {
-        for (int i = 0; i < Rooms; i++)
+        // this runs before the game starts
+        for (int i = 0; i < rooms; i++)
         {
-
-            int cube = -1;
-            int attempt = 0;
-            while (cube == -1)
-            {
-                attempt++;
-                if (attempt == 200)
-                {
-                    break;
-                }
-                cube = generateFloor(
-                    Random.Range(0, LevelSize),
-                    Random.Range(0, LevelSize),
-                    Random.Range(minSize, maxSize),
-                    Random.Range(minSize, maxSize)
-                    
-                );
-            }
+            generateRoom();
         }
-        generateFloorMesh();
-        generateDebugGrid();
+        for (int i = 0; i < iterations; i++)
+        {
+            moveRooms();
+        }
+        generateTriangles();
+        generateMesh();
+        //generateDebugGrid();
     }
 
-    // Update is called once per frame
-    //void Update()
-    //{
-
-    //}
 }
