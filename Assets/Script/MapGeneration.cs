@@ -12,12 +12,12 @@ using Vector3 = UnityEngine.Vector3;
 
 public class NewMapGeneration : MonoBehaviour
 {
-    static int minSize = 2;
+    static int minSize = 3;
     static int maxSize = 9;
     static int rooms = 100;
     static int radius = 10;
-    static int tileSize = 2;
-    static int iterations = 1500;
+    static int tileSize = 1;
+    static int iterations = 5000;
 
     static List<Vector3> Vertices = new List<Vector3>();
     static List<int> triangles = new List<int>();
@@ -30,7 +30,6 @@ public class NewMapGeneration : MonoBehaviour
     struct room
     {
         public Vector2 position;
-        public Vector2 velocity;
         public int width;
         public int height;
     }
@@ -80,8 +79,8 @@ public class NewMapGeneration : MonoBehaviour
     }
     static bool isRoomColliding(room a, room b)
     {
-        bool yCollide = a.position.y - (a.height - 1) / 2 < b.position.y + (b.height - 1) / 2 && b.position.y - (b.height - 1) / 2 < a.position.y - (a.height - 1) / 2;
-        bool xCollide = a.position.x - (a.width - 1) / 2 < b.position.x + (b.width - 1) / 2 && b.position.x - (b.width - 1) / 2 < a.position.x - (a.width - 1) / 2;
+        bool yCollide = a.position.y - (a.height - 1) / 2 < b.position.y + (b.height - 1) / 2 && b.position.y - (b.height - 1) / 2 < a.position.y + (a.height - 1) / 2;
+        bool xCollide = a.position.x - (a.width - 1) / 2 < b.position.x + (b.width - 1) / 2 && b.position.x - (b.width - 1) / 2 < a.position.x + (a.width - 1) / 2;
         return xCollide && yCollide;
     }
     static void moveRooms()
@@ -95,17 +94,40 @@ public class NewMapGeneration : MonoBehaviour
                 room otherRoom = nodes[j];
                 if (isRoomColliding(currentRoom, otherRoom))
                 {
-                    Vector2 direction = currentRoom.position - otherRoom.position;
-                    currentRoom.velocity += direction / (direction.magnitude + 0.1f);
-                    currentRoom.velocity *= 0.9f; // friction
+                    int w = 0;
+                    while (isRoomColliding(currentRoom, otherRoom) && w<11)
+                    {
+                        w++;
+                        // move away from the other room
+                        if (otherRoom.position.x < currentRoom.position.x)
+                        {
+                            otherRoom.position.x += -tileSize;
+                        }
+                        else if (otherRoom.position.x > currentRoom.position.x)
+                        {
+                            otherRoom.position.x += tileSize;
+                        }
+                        if (otherRoom.position.y < currentRoom.position.y)
+                        {
+                            otherRoom.position.y += -tileSize;
+                        }
+                        else if (otherRoom.position.y > currentRoom.position.y)
+                        {
+                            otherRoom.position.y += tileSize;
+                        }
+                        else
+                        {
+                            // if they are in the same position, move randomly
+                            otherRoom.position += new Vector2(roundToTile(Random.value * tileSize), roundToTile(Random.value * tileSize));
+                        }
+                    }
+                    nodes[j] = otherRoom;
                 }
             }
-            currentRoom.velocity -= currentRoom.position * 0.1f; // pull to centre
-            currentRoom.velocity *= 0.8f; // friction
-            currentRoom.position += new Vector2 (roundToTile(currentRoom.velocity.x), roundToTile(currentRoom.velocity.y));
-            nodes[i] = currentRoom;
+            //currentRoom.position += new Vector2 (roundToTile(velocity.x), roundToTile(velocity.y));
+            //nodes[i] = currentRoom;
         }
-        Debug.Log(nodes[0].velocity);
+        Debug.Log(nodes[0].position);
     }
     static int roundToTile(float value)
     {
