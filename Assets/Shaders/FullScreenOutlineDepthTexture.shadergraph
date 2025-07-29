@@ -1830,8 +1830,8 @@
     "m_ObjectId": "4401e7e9e3ef4b8982e996fc6f6b6dd7",
     "m_Title": "Bottom",
     "m_Position": {
-        "x": -1074.9998779296875,
-        "y": 1367.9998779296875
+        "x": -1075.0,
+        "y": 1368.0
     }
 }
 
@@ -2221,8 +2221,8 @@
     "m_ObjectId": "5d46840e0c9a4e05b3d5513d1b8fc671",
     "m_Title": "Makes Outline thickness scale with distance, don't use rn cuz doesn't look good with pixel graphics",
     "m_Position": {
-        "x": -2972.999755859375,
-        "y": 670.4999389648438
+        "x": -2973.0,
+        "y": 670.5
     }
 }
 
@@ -3674,7 +3674,7 @@
     "m_ObjectId": "aabbcc5a8bd840be9f037bcd66cddc62",
     "m_Title": "Left",
     "m_Position": {
-        "x": -1084.9998779296875,
+        "x": -1085.0,
         "y": 524.0
     }
 }
@@ -4234,7 +4234,7 @@
     "m_Title": "Top",
     "m_Position": {
         "x": -1067.5,
-        "y": 936.9999389648438
+        "y": 937.0
     }
 }
 
@@ -4654,7 +4654,7 @@
     "m_ObjectId": "e5e29fc589ef447fad2b5214a228c9f0",
     "m_Title": "Right",
     "m_Position": {
-        "x": -1081.9998779296875,
+        "x": -1082.0,
         "y": 117.5
     }
 }

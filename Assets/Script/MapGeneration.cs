@@ -48,9 +48,10 @@ public class NewMapGeneration : MonoBehaviour
     }
     struct wall
     {
-        public int x;
-        public int y;
+        public float x;
+        public float y;
         public int direction;
+        public int width;
     }
     struct room
     {
@@ -109,6 +110,7 @@ public class NewMapGeneration : MonoBehaviour
         newRoom.height = roundToTile(Random.Range(minSize, maxSize) * 2 + 1);
         nodes.Add(newRoom);
     }
+    // segments AB to segments CD
     static bool doSegmentsIntersect(Vector2 A, Vector2 B, Vector2 C, Vector2 D)
     {
         // lowkey the only part of the code where copilot was actually helpful
@@ -414,7 +416,7 @@ public class NewMapGeneration : MonoBehaviour
 
             Vector2 corridorPosition = new Vector2(math.min(p.position.x, q.position.x), math.min(p.position.y, q.position.y));
             Vector2 corriderSize = new Vector2(math.max(p.position.x, q.position.x) - corridorPosition.x, math.max(p.position.y, q.position.y) - corridorPosition.y);
-            
+
             corriderSize.x = math.max(corriderSize.x, minCorriderSize);
             corriderSize.y = math.max(corriderSize.y, minCorriderSize);
 
@@ -422,20 +424,33 @@ public class NewMapGeneration : MonoBehaviour
             if (isHorizontal)
             {   // horizontal corridor
                 // clamp horizontally
-                int righterPosition = p.position.x > q.position.x ? 1 : -1;
-                math.clamp(corridorPosition.x, p.position.x + (p.width * -1 * righterPosition), q.position.x + (q.width * righterPosition));
-                math.clamp(corriderSize.x, p.position.x + (p.width * -1 * righterPosition), q.position.x + (q.width * righterPosition));
+                float pR = p.position.x + p.width / 2;
+                float qR = q.position.x + q.width / 2;
+                float pL = p.position.x - p.width / 2;
+                float qL = q.position.x - q.width / 2;
+
+                math.clamp(corridorPosition.x, Mathf.Min(pR, qR), Mathf.Max(pR, qR));
+                math.clamp(corridorPosition.x, Mathf.Min(pL, qL), Mathf.Max(pL, qL));
+
+                math.clamp(corriderSize.x, Mathf.Min(pR, qR) - corridorPosition.x, Mathf.Max(pR, qR) - corridorPosition.x);
+                math.clamp(corriderSize.x, Mathf.Min(pL, qL) - corridorPosition.x, Mathf.Max(pL, qL) - corridorPosition.x);
             }
             else
             {   // vertical corridor
                 // clamp vertically
-                int higherPosition = p.position.y > q.position.y ? 1 : -1;
-                math.clamp(corridorPosition.y, p.position.y + (p.height * -1 * higherPosition), q.position.y + (q.height * higherPosition));
-                math.clamp(corriderSize.y, p.position.y + (p.height * -1 * higherPosition), q.position.y + (q.height * higherPosition));
-            }
+                float pT = p.position.y + p.height / 2;
+                float qT = q.position.y + q.height / 2;
+                float pB = p.position.y - p.height / 2;
+                float qB = q.position.y - q.height / 2;
 
+                math.clamp(corridorPosition.y, Mathf.Min(pT, qT), Mathf.Max(pT, qT));
+                math.clamp(corridorPosition.y, Mathf.Min(pB, qB), Mathf.Max(pB, qB));
+
+                math.clamp(corriderSize.y, Mathf.Min(pT, qT) - corridorPosition.y, Mathf.Max(pT, qT) - corridorPosition.y);
+                math.clamp(corriderSize.y, Mathf.Min(pB, qB) - corridorPosition.y, Mathf.Max(pB, qB) - corridorPosition.y);
+            }
             //Debug.DrawLine(new Vector3(corriderSize.x + corridorPosition.x, 0, corriderSize.y + corridorPosition.y), new Vector3(corridorPosition.x, 0, corridorPosition.y), Color.green, 100f);
-            
+
             // draw corrider to tile map
 
             corridorPosition -= mapbottomLeft;
@@ -463,6 +478,10 @@ public class NewMapGeneration : MonoBehaviour
 
         // the walls face inward towards the tile center so you don't have to check empty tiles
 
+        // we need to loop through the tilemap on the y axis and strech out any vertical walls then place them
+        // then do the same on the x axis
+
+        // loop through y axis
         for (int x = 0; x < tileMap.GetLength(0); x++)
         {
             for (int y = 0; y < tileMap.GetLength(1); y++)
@@ -471,38 +490,127 @@ public class NewMapGeneration : MonoBehaviour
 
                 if (tileType == 0) continue; // empty tile
 
-                int[] xDir = { 1, -1, 0, 0 };
-                int[] yDir = { 0, 0, -1, 1 };
+                int[] xDir = { 1, -1};
 
                 // 0 = right
                 // 1 = left
-                // 2 = down
-                // 3 = up
 
                 for (int i = 0; i < xDir.Length; i++)
                 {
                     int neighbourX = x + xDir[i];
-                    int neighbourY = y + yDir[i];
-                    if (neighbourX < 0 || neighbourY < 0 || neighbourX >= tileMap.GetLength(0) || neighbourY >= tileMap.GetLength(1))
+                    if (neighbourX < 0 || y < 0 || neighbourX >= tileMap.GetLength(0) || y >= tileMap.GetLength(1))
                     {
                         continue; // out of bounds
                     }
-                    if (tileMap[neighbourX, neighbourY] == 0)
-                    { // empty tile
+                    if (tileMap[neighbourX, y] == 0)
+                    {
+                        int size = 1;
+                        while (y < tileMap.GetLength(1) && tileMap[neighbourX, y] == 0 && tileMap[x,y] != 0)
+                        {
+                            size++;
+                            y++;
+                        }
+                        y--;
+                        size--;
+
                         wall newWall = new wall();
                         newWall.x = x;
-                        newWall.y = y;
-                        newWall.direction = i; // direction of the wall
+                        newWall.y = y- ((float)size-1)/2;
+                        newWall.width = size;
+                        newWall.direction = i;
                         walls.Add(newWall);
                     }
                 }
             }
         }
+        // 1, 0
+        // 2, 0.5
+        // 3, 1
+        // | -
+        // | - \
+        // | - /
+        // | -
+        for (int y = 0; y < tileMap.GetLength(1); y++)
+        {
+            for (int x = 0; x < tileMap.GetLength(0); x++)
+            {
+                int tileType = tileMap[x, y];
+
+                if (tileType == 0) continue; // empty tile
+
+                int[] yDir = { 1, -1};
+
+                // 0 = right
+                // 1 = left
+
+                for (int i = 0; i < yDir.Length; i++)
+                {
+                    int neighbourY = y + yDir[i];
+                    if (x < 0 || neighbourY < 0 || x >= tileMap.GetLength(0) || neighbourY >= tileMap.GetLength(1))
+                    {
+                        continue; // out of bounds
+                    }
+                    if (tileMap[x, neighbourY] == 0)
+                    {
+                        int size = 1;
+                        while (x < tileMap.GetLength(0) && tileMap[x, neighbourY] == 0 && tileMap[x,y] != 0)
+                        {
+                            size++;
+                            x++;
+                        }
+                        x--;
+                        size--;
+
+                        wall newWall = new wall();
+                        newWall.x = x-((float)size - 1) /2;
+                        newWall.y = y;
+                        newWall.width = size;
+                        newWall.direction = i+2;
+                        walls.Add(newWall);
+                    }
+                }
+            }
+        }
+
+        // loop through x axis
         Debug.Log(walls.Count + " walls have been added");
         Debug.Log(walls.Count * 12 + " triangles are generated by teh walls");
     }
-    static void generateDoors()
+    static List<Vector2> getRoomPaths(room currentRoom)
     {
+        List<Vector2> paths = new List<Vector2>();
+        foreach (roomPath path in roomPaths)
+        {
+            if (isRoomInsidePath(currentRoom, path))
+            {
+                paths.Add(path.p);
+                paths.Add(path.q);
+            }
+        }
+        return paths;
+    }
+    static bool doesSegmentIntersectWithRoomsPaths(Vector2 A, Vector2 B, List<Vector2> paths)
+    { // every even (at 0 base index) indice of paths is A of a new path
+        Debug.Log(paths.Count);
+        for (int i = 0; i < paths.Count; i += 2)
+        {
+            Vector2 C = paths[i];
+            Vector2 D = paths[i + 1];
+            if (doSegmentsIntersect(A, B, C, D))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+        static void generateDoors()
+    {
+        // new idea
+        // count how many edges the room has
+        // find the closest tile on covex hull to edge
+        // place door weighted away from corners if possibles
+        // loop through edge count
+
         foreach (room mainroom in mainNodes)
         {
             int tileCentreX = (int)(mainroom.position.x - mapbottomLeft.x);
@@ -533,7 +641,8 @@ public class NewMapGeneration : MonoBehaviour
             // anticlockwise starting from top right (-1 on y position) side
             int[] xdir = { 0, -1, 0, 1 };
             int[] ydir = { -1, 0, 1, 0 };
-            bool doorPlaced = false;
+            int doorsPlaced = 0;
+            List<Vector2> paths = getRoomPaths(mainroom);
 
             for (int i = 0; i < xdir.Length; i++)
             {
@@ -542,9 +651,18 @@ public class NewMapGeneration : MonoBehaviour
                     probeX += xdir[i];
                     probeY += ydir[i];
 
-                    if (tileMap[probeX + (ydir[i]*-1), probeY + (xdir[i]*-1)] == 2)
+                    Vector2[] wallEdge =
                     {
-                        if (doorPlaced == false)
+                        new Vector2(probeX, probeY), new Vector2(probeX + xdir[i], probeY + ydir[i])
+                    };
+                    int targetNeighborY = probeY + (xdir[i] * -1);
+                    int targetNeighborX = probeX + (ydir[i] * -1);
+
+                    if (targetNeighborX >= 0 && targetNeighborX < tileMap.GetLength(0) &&
+                        targetNeighborY >= 0 && targetNeighborY < tileMap.GetLength(1) &&
+                        tileMap[targetNeighborX, targetNeighborY] == 2)// && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
+                    {
+                        if (doorsPlaced < paths.Count)
                         {
                             // door is 2 tiles wide (currently)
                             // check if we can place the door near the centre so it isn't on the side (bad asthetic)
@@ -557,10 +675,9 @@ public class NewMapGeneration : MonoBehaviour
 
                             if (remainingLength >= 2)
                             {
-                                doorPlaced = true;
-
+                                doorsPlaced++;
+                                probeX += 2 * xdir[i];
                             }
-
                         }
                         else
                         {
@@ -592,15 +709,15 @@ public class NewMapGeneration : MonoBehaviour
                     rotation = -math.PIHALF; // left
                     break;
                 case 2:
-                    rotation = -math.PI; // down
+                    rotation = 0; // up
                     break;
                 case 3:
-                    rotation = 0; // up
+                    rotation = -Mathf.PI; // down
                     break;
             }
 
             GameObject wallClone = Instantiate(wall, new Vector3(currentWall.x * tileSize, 0.5f, currentWall.y * tileSize) + new Vector3(mapbottomLeft.x, mapHeight, mapbottomLeft.y), quaternion.EulerXYZ(0f,rotation,0f));
-
+            wallClone.transform.localScale = new Vector3(currentWall.width, 1f, 1f);
         }
         
     }
@@ -671,7 +788,7 @@ public class NewMapGeneration : MonoBehaviour
 
 
         generateWallList();
-        //generateDoors();
+        generateDoors();
         generateWalls();
 
         triangles = new List<int>();
@@ -680,8 +797,8 @@ public class NewMapGeneration : MonoBehaviour
         //Debug.Log("Vertices: " + Vertices.Count + " Triangles: " + triangles.Count);
 
 
-        //generateTriangles(renderNodes, -0.5f);
-        //generateMesh("SpatialMappingWireframe");
+        //generateTriangles(renderNodes, 2f);
+        //generateMesh("MushToon");
 
 
         //triangles = new List<int>();
