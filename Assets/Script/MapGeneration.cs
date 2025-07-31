@@ -377,6 +377,7 @@ public class NewMapGeneration : MonoBehaviour
                     int roomX = posX + x;
                     int roomY = posY + y;
                     Debug.Log("roomX: " + roomX + " roomY: " + roomY + " tileType: " + tileType);
+                    if (tileMap[roomX, roomY] == 1) continue;
                     tileMap[roomX, roomY] = tileType;
                 }
             }
@@ -603,7 +604,7 @@ public class NewMapGeneration : MonoBehaviour
         }
         return false;
     }
-        static void generateDoors()
+    static void generateDoors()
     {
         // new idea
         // count how many edges the room has
@@ -615,6 +616,8 @@ public class NewMapGeneration : MonoBehaviour
         {
             int tileCentreX = (int)(mainroom.position.x - mapbottomLeft.x);
             int tileCentreY = (int)(mainroom.position.y - mapbottomLeft.y);
+
+            Debug.DrawLine(new Vector3(tileCentreX, 0, tileCentreY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(tileCentreX, 0, tileCentreY + 1) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.black, 100f);
 
             int probeX = tileCentreX;
             int probeY = tileCentreY;
@@ -631,12 +634,14 @@ public class NewMapGeneration : MonoBehaviour
             while (tileMap[probeX, probeY] == 1)
             {
                 probeY++;
-                if (probeY >= tileMap.GetLength(0))
+                if (probeY >= tileMap.GetLength(1))
                 {
                     break;
                 }
             }
             probeY -= 2; // minus two so we don't check top right tile twice when we loop convex hull
+
+            Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(probeX, 0, probeY + 1) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.green, 100f);
 
             // anticlockwise starting from top right (-1 on y position) side
             int[] xdir = { 0, -1, 0, 1 };
@@ -647,8 +652,9 @@ public class NewMapGeneration : MonoBehaviour
             for (int i = 0; i < xdir.Length; i++)
             {
                 int iteration = 0;
-                while(probeX + xdir[i] != 0 && probeY + ydir[i] != 0 && iteration < 69)
+                while(tileMap[probeX + xdir[i], probeY] != 0 && tileMap[probeY + ydir[i], probeY] != 0 && iteration < 69)
                 {
+                    Debug.DrawLine(new Vector3(probeX + xdir[i], 0, probeY + ydir[i]) + new Vector3(mapbottomLeft.x, 4f,mapbottomLeft.y), new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 4f, mapbottomLeft.y), Color.red, 100f);
                     iteration++;
                     probeX += xdir[i];
                     probeY += ydir[i];
@@ -662,9 +668,10 @@ public class NewMapGeneration : MonoBehaviour
 
                     if (targetNeighborX >= 0 && targetNeighborX < tileMap.GetLength(0) &&
                         targetNeighborY >= 0 && targetNeighborY < tileMap.GetLength(1) &&
-                        tileMap[targetNeighborX, targetNeighborY] == 2 && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
+                        tileMap[targetNeighborX, targetNeighborY] == 2)
                     {
-                        if (doorsPlaced < paths.Count)
+                        Debug.Log("gegege");
+                        if (doorsPlaced < paths.Count && true == false && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
                         {
                             // door is 2 tiles wide (currently)
                             // check if we can place the door near the centre so it isn't on the side (bad asthetic)
@@ -673,20 +680,23 @@ public class NewMapGeneration : MonoBehaviour
                             //{
                             //    remainingLength++;
                             //}
-                            remainingLength--;
+                            //remainingLength--;
 
                             if (remainingLength >= 2)
                             {
                                 doorsPlaced++;
-                                //probeX += 2 * xdir[i];
+                                probeX += 2 * xdir[i];
                             }
                         }
                         else
                         {
+                            Debug.Log("se");
                             wall newWall = new wall();
                             newWall.x = probeX;
                             newWall.y = probeY;
                             newWall.direction = i;
+                            newWall.width = 1;
+                            walls.Add(newWall);
                         }
                     }
                 }
