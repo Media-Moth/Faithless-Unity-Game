@@ -646,8 +646,10 @@ public class NewMapGeneration : MonoBehaviour
 
             for (int i = 0; i < xdir.Length; i++)
             {
-                while(probeX + xdir[i] != 0 && probeY + ydir[i] != 0)
+                int iteration = 0;
+                while(probeX + xdir[i] != 0 && probeY + ydir[i] != 0 && iteration < 69)
                 {
+                    iteration++;
                     probeX += xdir[i];
                     probeY += ydir[i];
 
@@ -660,23 +662,23 @@ public class NewMapGeneration : MonoBehaviour
 
                     if (targetNeighborX >= 0 && targetNeighborX < tileMap.GetLength(0) &&
                         targetNeighborY >= 0 && targetNeighborY < tileMap.GetLength(1) &&
-                        tileMap[targetNeighborX, targetNeighborY] == 2)// && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
+                        tileMap[targetNeighborX, targetNeighborY] == 2 && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
                     {
                         if (doorsPlaced < paths.Count)
                         {
                             // door is 2 tiles wide (currently)
                             // check if we can place the door near the centre so it isn't on the side (bad asthetic)
                             int remainingLength = 0;
-                            while (probeX + (remainingLength * xdir[i]) != 0 && probeY + (remainingLength * ydir[i]) != 0)
-                            {
-                                remainingLength++;
-                            }
+                            //while (probeX + (remainingLength * xdir[i]) != 0 && probeY + (remainingLength * ydir[i]) != 0)
+                            //{
+                            //    remainingLength++;
+                            //}
                             remainingLength--;
 
                             if (remainingLength >= 2)
                             {
                                 doorsPlaced++;
-                                probeX += 2 * xdir[i];
+                                //probeX += 2 * xdir[i];
                             }
                         }
                         else
