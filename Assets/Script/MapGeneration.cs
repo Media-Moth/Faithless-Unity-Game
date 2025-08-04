@@ -652,6 +652,7 @@ public class NewMapGeneration : MonoBehaviour
             for (int i = 0; i < xdir.Length; i++)
             {
                 int iteration = 0;
+                //FIX THIS SHIT
                 while(tileMap[probeX + xdir[i], probeY] != 0 && tileMap[probeY + ydir[i], probeY] != 0 && iteration < 69)
                 {
                     Debug.DrawLine(new Vector3(probeX + xdir[i], 0, probeY + ydir[i]) + new Vector3(mapbottomLeft.x, 4f,mapbottomLeft.y), new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 4f, mapbottomLeft.y), Color.red, 100f);
@@ -800,7 +801,7 @@ public class NewMapGeneration : MonoBehaviour
 
 
         generateWallList();
-        generateDoors();
+        //generateDoors();
         generateWalls();
 
         triangles = new List<int>();
