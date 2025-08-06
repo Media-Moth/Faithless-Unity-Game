@@ -579,6 +579,7 @@ public class NewMapGeneration : MonoBehaviour
     }
     static List<Vector2> getRoomPaths(room currentRoom)
     {
+        // there's something wrong with this fix it now
         List<Vector2> paths = new List<Vector2>();
         foreach (roomPath path in roomPaths)
         {
@@ -592,7 +593,6 @@ public class NewMapGeneration : MonoBehaviour
     }
     static bool doesSegmentIntersectWithRoomsPaths(Vector2 A, Vector2 B, List<Vector2> paths)
     { // every even (at 0 base index) indice of paths is A of a new path
-        Debug.Log(paths.Count);
         for (int i = 0; i < paths.Count; i += 2)
         {
             Vector2 C = paths[i];
@@ -603,6 +603,10 @@ public class NewMapGeneration : MonoBehaviour
             }
         }
         return false;
+    }
+    static bool isOutOfBounds(int x, int y)
+    {
+        return x < 0 || y < 0 || x >= tileMap.GetLength(0) || y >= tileMap.GetLength(1);
     }
     static void generateDoors()
     {
@@ -619,87 +623,60 @@ public class NewMapGeneration : MonoBehaviour
 
             Debug.DrawLine(new Vector3(tileCentreX, 0, tileCentreY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(tileCentreX, 0, tileCentreY + 1) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.black, 100f);
 
-            int probeX = tileCentreX;
-            int probeY = tileCentreY;
+            int probeX = tileCentreX + mainroom.width / 2;
+            int probeY = tileCentreY + mainroom.height / 2;
 
-            while (tileMap[probeX, probeY] == 1) // find a tile that is not a main room floor
-            {
-                probeX++;
-                if (probeX >= tileMap.GetLength(0))
-                {
-                    break;
-                }
-            }
-            probeX--;
-            while (tileMap[probeX, probeY] == 1)
-            {
-                probeY++;
-                if (probeY >= tileMap.GetLength(1))
-                {
-                    break;
-                }
-            }
-            probeY -= 2; // minus two so we don't check top right tile twice when we loop convex hull
+            //while (tileMap[probeX, probeY] == 1) // find a tile that is not a main room floor
+            //{
+            //    probeX++;
+            //    if (probeX >= tileMap.GetLength(0))
+            //    {
+            //        break;
+            //    }
+            //}
+            //probeX--;
+            //while (tileMap[probeX, probeY] == 1)
+            //{
+            //    probeY++;
+            //    if (probeY >= tileMap.GetLength(1))
+            //    {
+            //        break;
+            //    }
+            //}
+            //probeY -= 2; // minus two so we don't check top right tile twice when we loop convex hull
+            //probeY--;
 
-            Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(probeX, 0, probeY + 1) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.green, 100f);
+            Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 3f, mapbottomLeft.y), new Vector3(probeX, 0, probeY + 1) + new Vector3(mapbottomLeft.x, 3f, mapbottomLeft.y), Color.green, 100f);
 
             // anticlockwise starting from top right (-1 on y position) side
             int[] xdir = { 0, -1, 0, 1 };
             int[] ydir = { -1, 0, 1, 0 };
+            int[] max = {mainroom.height-1, mainroom.width-1, mainroom.height-1, mainroom.width-1};
             int doorsPlaced = 0;
             List<Vector2> paths = getRoomPaths(mainroom);
+            Debug.Log(paths.Count / 2);
 
             for (int i = 0; i < xdir.Length; i++)
             {
-                int iteration = 0;
-                //FIX THIS SHIT
-                while(tileMap[probeX + xdir[i], probeY] != 0 && tileMap[probeY + ydir[i], probeY] != 0 && iteration < 69)
+                for (int j = 0; j < max[i]; j++)
                 {
-                    Debug.DrawLine(new Vector3(probeX + xdir[i], 0, probeY + ydir[i]) + new Vector3(mapbottomLeft.x, 4f,mapbottomLeft.y), new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 4f, mapbottomLeft.y), Color.red, 100f);
-                    iteration++;
                     probeX += xdir[i];
                     probeY += ydir[i];
+                    int neighborX = probeX - ydir[i]; // penpendicular neighbor on the outside
+                    int neighborY = probeY + xdir[i];
 
-                    Vector2[] wallEdge =
+                    if (isOutOfBounds(probeX, probeY) || isOutOfBounds(neighborX, neighborY)) continue;
+
+                    Vector2 A = new Vector2(probeX, probeY);
+                    Vector2 B = new Vector2(neighborX, neighborY);
+
+                    if (tileMap[neighborX, neighborY] == 2 && doesSegmentIntersectWithRoomsPaths(A,B, paths))
                     {
-                        new Vector2(probeX, probeY), new Vector2(probeX + xdir[i], probeY + ydir[i])
-                    };
-                    int targetNeighborY = probeY + (xdir[i] * -1);
-                    int targetNeighborX = probeX + (ydir[i] * -1);
-
-                    if (targetNeighborX >= 0 && targetNeighborX < tileMap.GetLength(0) &&
-                        targetNeighborY >= 0 && targetNeighborY < tileMap.GetLength(1) &&
-                        tileMap[targetNeighborX, targetNeighborY] == 2)
-                    {
-                        Debug.Log("gegege");
-                        if (doorsPlaced < paths.Count && true == false && doesSegmentIntersectWithRoomsPaths(wallEdge[0], wallEdge[1], paths))
-                        {
-                            // door is 2 tiles wide (currently)
-                            // check if we can place the door near the centre so it isn't on the side (bad asthetic)
-                            int remainingLength = 0;
-                            //while (probeX + (remainingLength * xdir[i]) != 0 && probeY + (remainingLength * ydir[i]) != 0)
-                            //{
-                            //    remainingLength++;
-                            //}
-                            //remainingLength--;
-
-                            if (remainingLength >= 2)
-                            {
-                                doorsPlaced++;
-                                probeX += 2 * xdir[i];
-                            }
-                        }
-                        else
-                        {
-                            Debug.Log("se");
-                            wall newWall = new wall();
-                            newWall.x = probeX;
-                            newWall.y = probeY;
-                            newWall.direction = i;
-                            newWall.width = 1;
-                            walls.Add(newWall);
-                        }
+                        Debug.Log("yay");
+                        Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 7f, mapbottomLeft.y), new Vector3(neighborX, 0, neighborY) + new Vector3(mapbottomLeft.x, 7f, mapbottomLeft.y), Color.yellow, 100f);
                     }
+
+                    Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(probeX - xdir[i], 0, probeY - ydir[i]) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.red, 100f);
                 }
             }
         }
@@ -801,7 +778,7 @@ public class NewMapGeneration : MonoBehaviour
 
 
         generateWallList();
-        //generateDoors();
+        generateDoors();
         generateWalls();
 
         triangles = new List<int>();
