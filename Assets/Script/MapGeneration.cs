@@ -13,6 +13,7 @@ using Vector3 = UnityEngine.Vector3;
 using IPoint = DelaunatorSharp.IPoint;
 using UnityEditor.PackageManager;
 using Unity.Mathematics;
+using UnityEditor.Rendering;
 
 public class NewMapGeneration : MonoBehaviour
 {
@@ -22,9 +23,9 @@ public class NewMapGeneration : MonoBehaviour
     static int radius = 40;
     static int tileSize = 1;
     static int sizeThreshold = 3;
-    static int borderThreshold = 1;
+    static int borderThreshold = 3;
     static float mapHeight = 0f;
-    static int minCorriderSize = 2;
+    static int minCorriderSize = 3;
 
     static List<Vector3> Vertices = new List<Vector3>();
     static List<int> triangles = new List<int>();
@@ -115,18 +116,26 @@ public class NewMapGeneration : MonoBehaviour
     {
         // lowkey the only part of the code where copilot was actually helpful
         // Check if segments AB and CD intersect
+
+        // what ai didn't do is account for float error
+        const float epsilon = 1e-6f;
+
         float denominator = (B.x - A.x) * (D.y - C.y) - (B.y - A.y) * (D.x - C.x);
-        if (denominator == 0)
+        if (math.abs(denominator) < epsilon)
         {
             return false; // Segments are parallel
         }
         float ua = ((D.x - C.x) * (A.y - C.y) - (D.y - C.y) * (A.x - C.x)) / denominator;
         float ub = ((B.x - A.x) * (A.y - C.y) - (B.y - A.y) * (A.x - C.x)) / denominator;
-        return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+
+        //return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+
+        return ua >= -epsilon && ua <= 1 + epsilon &&
+        ub >= -epsilon && ub <= 1 + epsilon;
     }
     static bool isRoomInsidePath(room r, roomPath path)
     {
-        // check right edge
+               // check right edge
         return doSegmentsIntersect(r.position + new Vector2(r.width / 2, r.height / 2), r.position + new Vector2(r.width / 2, -r.height / 2), path.p, path.q) ||
                // check left edge
                doSegmentsIntersect(r.position + new Vector2(-r.width / 2, r.height / 2), r.position + new Vector2(-r.width / 2, -r.height / 2), path.p, path.q) ||
@@ -581,7 +590,7 @@ public class NewMapGeneration : MonoBehaviour
     {
         // there's something wrong with this fix it now
         List<Vector2> paths = new List<Vector2>();
-        foreach (roomPath path in roomPaths)
+        foreach (roomPath path in roomTrees[0])
         {
             if (isRoomInsidePath(currentRoom, path))
             {
@@ -599,6 +608,8 @@ public class NewMapGeneration : MonoBehaviour
             Vector2 D = paths[i + 1];
             if (doSegmentsIntersect(A, B, C, D))
             {
+                paths.RemoveAt(i + 1);
+                paths.RemoveAt(i);
                 return true;
             }
         }
@@ -654,7 +665,6 @@ public class NewMapGeneration : MonoBehaviour
             int[] max = {mainroom.height-1, mainroom.width-1, mainroom.height-1, mainroom.width-1};
             int doorsPlaced = 0;
             List<Vector2> paths = getRoomPaths(mainroom);
-            Debug.Log(paths.Count / 2);
 
             for (int i = 0; i < xdir.Length; i++)
             {
@@ -668,12 +678,32 @@ public class NewMapGeneration : MonoBehaviour
                     if (isOutOfBounds(probeX, probeY) || isOutOfBounds(neighborX, neighborY)) continue;
 
                     Vector2 A = new Vector2(probeX, probeY);
-                    Vector2 B = new Vector2(neighborX, neighborY);
+                    Vector2 B = new Vector2(probeX - xdir[i], probeY - ydir[i]);
 
-                    if (tileMap[neighborX, neighborY] == 2 && doesSegmentIntersectWithRoomsPaths(A,B, paths))
+                    A += mapbottomLeft;
+                    B += mapbottomLeft;
+
+                    if (doesSegmentIntersectWithRoomsPaths(A,B, paths)) // tileMap[neighborX, neighborY] == 2 &&
                     {
-                        Debug.Log("yay");
-                        Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 7f, mapbottomLeft.y), new Vector3(neighborX, 0, neighborY) + new Vector3(mapbottomLeft.x, 7f, mapbottomLeft.y), Color.yellow, 100f);
+                        Debug.DrawLine(new Vector3(A.x, 5.5f, A.y), new Vector3(B.x, 5.5f, B.y), Color.yellow, 100f);
+                    }
+                    else
+                    {
+                        if (tileMap[neighborX, neighborY] != 0)
+                        {
+                            wall newWall = new wall();
+                            newWall.x = probeX;
+                            newWall.y = probeY;
+                            newWall.width = 1;
+                            int dir = i;
+                            if (dir == 1) dir = 3;
+                            if (dir == 2) dir = 1;
+                            if (dir == 3) dir = 2;
+                            if (dir == 4) dir = 4;
+                            newWall.direction = dir;
+                            walls.Add(newWall);
+                        }
+                        
                     }
 
                     Debug.DrawLine(new Vector3(probeX, 0, probeY) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), new Vector3(probeX - xdir[i], 0, probeY - ydir[i]) + new Vector3(mapbottomLeft.x, 5f, mapbottomLeft.y), Color.red, 100f);
