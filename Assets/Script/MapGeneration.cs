@@ -808,7 +808,7 @@ public class NewMapGeneration : MonoBehaviour
 
 
         generateWallList();
-        generateDoors();
+        //generateDoors();
         generateWalls();
 
         triangles = new List<int>();
